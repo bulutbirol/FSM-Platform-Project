@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: serviceflow
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/serviceflow}
+    username: ${DB_USERNAME:serviceflow}
+    password: ${DB_PASSWORD:serviceflow}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+    locations: classpath:db/migration/schema
+server:
+  port: ${SERVER_PORT:8080}
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration-ms: ${JWT_EXPIRATION_MS:28800000}
+  cors-origin: ${CORS_ORIGIN:http://localhost:5173}
+  demo:
+    enabled: false
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+

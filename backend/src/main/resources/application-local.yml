@@ -1,0 +1,9 @@
+spring:
+  flyway:
+    locations: classpath:db/migration/schema,classpath:db/migration/demo
+app:
+  jwt:
+    secret: ${JWT_SECRET:c2VydmljZWZsb3ctbG9jYWwtZGV2ZWxvcG1lbnQtc2VjcmV0LWNoYW5nZS1tZQ==}
+  demo:
+    enabled: true
+
