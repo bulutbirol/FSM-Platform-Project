@@ -40,7 +40,8 @@ class QuoteServiceTest {
     void customerApprovesOwnSentQuoteAndUpdatesRequest() {
         ServiceRequest request = ServiceRequest.builder().id(8L).customer(customer).status(ServiceRequestStatus.QUOTED).build();
         Quote quote = Quote.builder().id(9L).serviceRequest(request).status(QuoteStatus.SENT).build();
-        when(quoteRepository.findById(9L)).thenReturn(Optional.of(quote));
+        when(quoteRepository.findByIdForUpdate(9L)).thenReturn(Optional.of(quote));
+        when(requestRepository.findByIdForUpdate(8L)).thenReturn(Optional.of(request));
         when(userRepository.findByEmailIgnoreCase(customerUser.getEmail())).thenReturn(Optional.of(customerUser));
         when(quoteRepository.save(quote)).thenReturn(quote);
 
@@ -55,7 +56,7 @@ class QuoteServiceTest {
     void customerCannotApproveAnotherCustomersQuote() {
         Customer other = Customer.builder().id(5L).name("Other").active(true).build();
         Quote quote = Quote.builder().id(9L).status(QuoteStatus.SENT).serviceRequest(ServiceRequest.builder().customer(other).build()).build();
-        when(quoteRepository.findById(9L)).thenReturn(Optional.of(quote));
+        when(quoteRepository.findByIdForUpdate(9L)).thenReturn(Optional.of(quote));
         when(userRepository.findByEmailIgnoreCase(customerUser.getEmail())).thenReturn(Optional.of(customerUser));
 
         assertThatThrownBy(() -> quoteService.decide(9L, true, customerUser.getEmail())).isInstanceOf(ForbiddenException.class);
@@ -64,7 +65,7 @@ class QuoteServiceTest {
     @Test
     void customerCannotDecideDraftQuote() {
         Quote quote = Quote.builder().id(9L).status(QuoteStatus.DRAFT).serviceRequest(ServiceRequest.builder().customer(customer).build()).build();
-        when(quoteRepository.findById(9L)).thenReturn(Optional.of(quote));
+        when(quoteRepository.findByIdForUpdate(9L)).thenReturn(Optional.of(quote));
         when(userRepository.findByEmailIgnoreCase(customerUser.getEmail())).thenReturn(Optional.of(customerUser));
 
         assertThatThrownBy(() -> quoteService.decide(9L, true, customerUser.getEmail())).isInstanceOf(BusinessRuleException.class);
@@ -75,8 +76,31 @@ class QuoteServiceTest {
         ServiceRequest request = ServiceRequest.builder().id(8L).customer(customer).status(ServiceRequestStatus.CANCELLED).build();
         QuoteRequest input = new QuoteRequest("Service scope", new BigDecimal("100.00"), LocalDate.now().plusDays(7), 8L);
         when(quoteRepository.existsByServiceRequestId(8L)).thenReturn(false);
-        when(requestRepository.findById(8L)).thenReturn(Optional.of(request));
+        when(requestRepository.findByIdForUpdate(8L)).thenReturn(Optional.of(request));
 
         assertThatThrownBy(() -> quoteService.create(input)).isInstanceOf(BusinessRuleException.class);
+    }
+
+    @Test
+    void cannotSendDraftQuoteAfterTechnicianSchedulesRequest() {
+        ServiceRequest request = ServiceRequest.builder().id(8L).customer(customer).status(ServiceRequestStatus.SCHEDULED).build();
+        Quote quote = Quote.builder().id(9L).serviceRequest(request).status(QuoteStatus.DRAFT).build();
+        when(quoteRepository.findByIdForUpdate(9L)).thenReturn(Optional.of(quote));
+        when(requestRepository.findByIdForUpdate(8L)).thenReturn(Optional.of(request));
+
+        assertThatThrownBy(() -> quoteService.send(9L)).isInstanceOf(BusinessRuleException.class);
+        assertThat(request.getStatus()).isEqualTo(ServiceRequestStatus.SCHEDULED);
+    }
+
+    @Test
+    void cannotDecideSentQuoteAfterRequestLeavesQuotedState() {
+        ServiceRequest request = ServiceRequest.builder().id(8L).customer(customer).status(ServiceRequestStatus.IN_PROGRESS).build();
+        Quote quote = Quote.builder().id(9L).serviceRequest(request).status(QuoteStatus.SENT).build();
+        when(quoteRepository.findByIdForUpdate(9L)).thenReturn(Optional.of(quote));
+        when(requestRepository.findByIdForUpdate(8L)).thenReturn(Optional.of(request));
+        when(userRepository.findByEmailIgnoreCase(customerUser.getEmail())).thenReturn(Optional.of(customerUser));
+
+        assertThatThrownBy(() -> quoteService.decide(9L, true, customerUser.getEmail())).isInstanceOf(BusinessRuleException.class);
+        assertThat(request.getStatus()).isEqualTo(ServiceRequestStatus.IN_PROGRESS);
     }
 }

@@ -31,7 +31,7 @@ export function AppShell() {
       const nextUser = await switchRole(event.target.value)
       queryClient.clear()
       showToast(`Switched to ${nextUser.role.toLowerCase()}`)
-      navigate(nextUser.role === 'ADMIN' ? '/app/dashboard' : nextUser.role === 'TECHNICIAN' ? '/app/work-orders' : '/app/requests')
+      navigate(nextUser.role === 'ADMIN' ? '/app/dashboard' : '/app/requests')
     } catch (error) {
       showToast(apiMessage(error), 'error')
     } finally {
@@ -86,4 +86,3 @@ export function AppShell() {
     </div>
   )
 }
-

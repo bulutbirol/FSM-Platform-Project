@@ -14,7 +14,6 @@ public record ServiceRequestInput(
         @NotNull Priority priority,
         @NotNull @FutureOrPresent LocalDate requestedDate,
         @NotBlank @Size(max = 300) String address,
-        @NotNull Long customerId
+        Long customerId
 ) {
 }
-

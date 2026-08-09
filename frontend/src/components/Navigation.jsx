@@ -11,6 +11,7 @@ const nav = {
     ['Profile', '/app/profile', UserRound]
   ],
   TECHNICIAN: [
+    ['Request queue', '/app/requests', ClipboardList],
     ['Work orders', '/app/work-orders', Wrench],
     ['Profile', '/app/profile', UserRound]
   ],
@@ -33,4 +34,3 @@ export function Navigation({ role, onNavigate }) {
     </nav>
   )
 }
-

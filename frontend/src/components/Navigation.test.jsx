@@ -10,9 +10,10 @@ test('admin navigation exposes management and dashboard links', () => {
   expect(screen.getByText('Quotations')).toBeInTheDocument()
 })
 
-test('technician navigation only exposes assigned work and profile', () => {
+test('technician navigation exposes request intake, assigned work and profile', () => {
   render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><Navigation role="TECHNICIAN" /></MemoryRouter>)
 
+  expect(screen.getByText('Request queue')).toBeInTheDocument()
   expect(screen.getByText('Work orders')).toBeInTheDocument()
   expect(screen.getByText('Profile')).toBeInTheDocument()
   expect(screen.queryByText('Customers')).not.toBeInTheDocument()

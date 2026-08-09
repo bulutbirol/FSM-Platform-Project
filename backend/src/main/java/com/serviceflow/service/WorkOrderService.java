@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -37,13 +38,12 @@ public class WorkOrderService {
 
     @Transactional
     public WorkOrderResponse create(WorkOrderRequest input) {
-        if (workOrderRepository.existsByServiceRequestId(input.serviceRequestId())) {
-            throw new BusinessRuleException("This service request already has a work order.");
-        }
-        ServiceRequest request = requestRepository.findById(input.serviceRequestId())
-                .orElseThrow(() -> new ResourceNotFoundException("Service request not found."));
+        ServiceRequest request = findRequestForUpdate(input.serviceRequestId());
         if (request.getStatus() != ServiceRequestStatus.APPROVED) {
             throw new BusinessRuleException("A work order requires an approved quotation.");
+        }
+        if (workOrderRepository.existsByServiceRequestId(input.serviceRequestId())) {
+            throw new BusinessRuleException("This service request already has a work order.");
         }
         if (input.assignedUserId() != null && input.scheduledDate() == null) {
             throw new BusinessRuleException("An assigned work order requires a scheduled date.");
@@ -63,28 +63,63 @@ public class WorkOrderService {
     }
 
     @Transactional
+    public WorkOrderResponse acceptRequest(Long requestId, LocalDateTime scheduledDate, String email) {
+        User technician = user(email);
+        if (technician.getRole() != Role.TECHNICIAN) {
+            throw new ForbiddenException("Only technicians can accept approved requests.");
+        }
+        ServiceRequest request = findRequestForUpdate(requestId);
+        if (request.getStatus() != ServiceRequestStatus.REVIEWED) {
+            throw new BusinessRuleException("Only administrator-approved requests can be accepted.");
+        }
+        if (workOrderRepository.existsByServiceRequestId(requestId)) {
+            throw new BusinessRuleException("This service request already has a work order.");
+        }
+        if (scheduledDate == null || scheduledDate.isBefore(LocalDateTime.now())) {
+            throw new BusinessRuleException("Appointment date must be in the present or future.");
+        }
+
+        WorkOrder order = new WorkOrder();
+        order.setTitle(request.getTitle());
+        order.setDescription(request.getDescription());
+        order.setScheduledDate(scheduledDate);
+        order.setServiceRequest(request);
+        order.setCustomer(request.getCustomer());
+        order.setAssignedUser(technician);
+        order.setStatus(WorkOrderStatus.SCHEDULED);
+        request.setStatus(ServiceRequestStatus.SCHEDULED);
+        requestRepository.save(request);
+        return WorkOrderResponse.from(workOrderRepository.save(order));
+    }
+
+    @Transactional
     public WorkOrderResponse assign(Long id, AssignWorkOrderRequest input) {
-        WorkOrder order = find(id);
+        WorkOrder order = findForUpdate(id);
         if (order.getStatus() != WorkOrderStatus.UNASSIGNED) {
             throw new BusinessRuleException("Only unassigned work orders can be assigned.");
         }
         order.setAssignedUser(technician(input.assignedUserId()));
         order.setScheduledDate(input.scheduledDate());
         order.setStatus(WorkOrderStatus.SCHEDULED);
-        syncRequestStatus(order);
+        syncRequestStatus(order, lockRequest(order));
         return WorkOrderResponse.from(workOrderRepository.save(order));
     }
 
     @Transactional
     public WorkOrderResponse updateStatus(Long id, UpdateWorkOrderStatusRequest input, String email) {
-        WorkOrder order = find(id);
+        WorkOrder order = findForUpdate(id);
         User user = user(email);
         ensureAssignedWhenTechnician(order, user);
+        if (order.getStatus() == WorkOrderStatus.SCHEDULED
+                && input.status() == WorkOrderStatus.IN_PROGRESS
+                && (order.getScheduledDate() == null || order.getScheduledDate().isAfter(LocalDateTime.now()))) {
+            throw new BusinessRuleException("Work cannot start before the scheduled appointment.");
+        }
         if (!isAllowedTransition(order.getStatus(), input.status())) {
             throw new BusinessRuleException("Invalid work-order status transition.");
         }
         order.setStatus(input.status());
-        syncRequestStatus(order);
+        syncRequestStatus(order, lockRequest(order));
         return WorkOrderResponse.from(workOrderRepository.save(order));
     }
 
@@ -100,10 +135,7 @@ public class WorkOrderService {
         };
     }
 
-    private void syncRequestStatus(WorkOrder order) {
-        if (order.getServiceRequest() == null) {
-            return;
-        }
+    private void syncRequestStatus(WorkOrder order, ServiceRequest request) {
         ServiceRequestStatus status = switch (order.getStatus()) {
             case SCHEDULED -> ServiceRequestStatus.SCHEDULED;
             case IN_PROGRESS -> ServiceRequestStatus.IN_PROGRESS;
@@ -111,12 +143,28 @@ public class WorkOrderService {
             case CANCELLED -> ServiceRequestStatus.CANCELLED;
             case UNASSIGNED -> ServiceRequestStatus.APPROVED;
         };
-        order.getServiceRequest().setStatus(status);
-        requestRepository.save(order.getServiceRequest());
+        request.setStatus(status);
+        requestRepository.save(request);
     }
 
     private WorkOrder find(Long id) {
         return workOrderRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Work order not found."));
+    }
+
+    private WorkOrder findForUpdate(Long id) {
+        return workOrderRepository.findByIdForUpdate(id).orElseThrow(() -> new ResourceNotFoundException("Work order not found."));
+    }
+
+    private ServiceRequest lockRequest(WorkOrder order) {
+        if (order.getServiceRequest() == null) {
+            throw new BusinessRuleException("Work order is not linked to a service request.");
+        }
+        return findRequestForUpdate(order.getServiceRequest().getId());
+    }
+
+    private ServiceRequest findRequestForUpdate(Long id) {
+        return requestRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Service request not found."));
     }
 
     private User user(String email) {

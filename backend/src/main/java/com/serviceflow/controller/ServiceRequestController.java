@@ -15,7 +15,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/service-requests")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('ADMIN','CUSTOMER')")
+@PreAuthorize("hasAnyRole('ADMIN','CUSTOMER','TECHNICIAN')")
 public class ServiceRequestController {
     private final ServiceRequestService requestService;
 
@@ -31,9 +31,9 @@ public class ServiceRequestController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasRole('ADMIN')")
-    public ServiceRequestResponse create(@Valid @RequestBody ServiceRequestInput request) {
-        return requestService.create(request);
+    @PreAuthorize("hasAnyRole('ADMIN','CUSTOMER')")
+    public ServiceRequestResponse create(@Valid @RequestBody ServiceRequestInput request, Principal principal) {
+        return requestService.create(request, principal.getName());
     }
 
     @PutMapping("/{id}")
@@ -48,4 +48,3 @@ public class ServiceRequestController {
         return requestService.updateStatus(id, request);
     }
 }
-

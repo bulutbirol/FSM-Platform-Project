@@ -40,8 +40,9 @@ class WorkOrderServiceTest {
     void assignedTechnicianStartsScheduledWorkOrder() {
         Customer customer = Customer.builder().id(4L).name("Northstar Coffee").active(true).build();
         ServiceRequest request = ServiceRequest.builder().id(8L).title("Machine maintenance").status(ServiceRequestStatus.SCHEDULED).customer(customer).build();
-        WorkOrder order = WorkOrder.builder().id(7L).status(WorkOrderStatus.SCHEDULED).assignedUser(technician).serviceRequest(request).customer(customer).build();
-        when(workOrderRepository.findById(7L)).thenReturn(Optional.of(order));
+        WorkOrder order = WorkOrder.builder().id(7L).status(WorkOrderStatus.SCHEDULED).scheduledDate(LocalDateTime.now().minusMinutes(1)).assignedUser(technician).serviceRequest(request).customer(customer).build();
+        when(workOrderRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(order));
+        when(requestRepository.findByIdForUpdate(8L)).thenReturn(Optional.of(request));
         when(workOrderRepository.save(order)).thenReturn(order);
 
         var response = workOrderService.updateStatus(7L, new UpdateWorkOrderStatusRequest(WorkOrderStatus.IN_PROGRESS), technician.getEmail());
@@ -51,10 +52,61 @@ class WorkOrderServiceTest {
     }
 
     @Test
+    void assignedTechnicianCannotStartBeforeAppointment() {
+        Customer customer = Customer.builder().id(4L).name("Northstar Coffee").active(true).build();
+        ServiceRequest request = ServiceRequest.builder().id(8L).title("Machine maintenance").status(ServiceRequestStatus.SCHEDULED).customer(customer).build();
+        WorkOrder order = WorkOrder.builder().id(7L).status(WorkOrderStatus.SCHEDULED).scheduledDate(LocalDateTime.now().plusHours(2)).assignedUser(technician).serviceRequest(request).customer(customer).build();
+        when(workOrderRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(order));
+        when(requestRepository.findByIdForUpdate(8L)).thenReturn(Optional.of(request));
+        when(workOrderRepository.save(order)).thenReturn(order);
+
+        assertThatThrownBy(() -> workOrderService.updateStatus(7L, new UpdateWorkOrderStatusRequest(WorkOrderStatus.IN_PROGRESS), technician.getEmail()))
+                .isInstanceOf(BusinessRuleException.class);
+    }
+
+    @Test
+    void technicianAcceptsReviewedRequestAndSchedulesOwnWorkOrder() {
+        Customer customer = Customer.builder().id(4L).name("Northstar Coffee").active(true).build();
+        ServiceRequest request = ServiceRequest.builder().id(8L).title("Machine maintenance").description("Inspect the machine").status(ServiceRequestStatus.REVIEWED).customer(customer).build();
+        LocalDateTime appointment = LocalDateTime.now().plusDays(2).withSecond(0).withNano(0);
+        when(requestRepository.findByIdForUpdate(8L)).thenReturn(Optional.of(request));
+        when(workOrderRepository.existsByServiceRequestId(8L)).thenReturn(false);
+        when(workOrderRepository.save(any(WorkOrder.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = workOrderService.acceptRequest(8L, appointment, technician.getEmail());
+
+        assertThat(response.status()).isEqualTo(WorkOrderStatus.SCHEDULED);
+        assertThat(response.scheduledDate()).isEqualTo(appointment);
+        assertThat(response.assignedUser().id()).isEqualTo(technician.getId());
+        assertThat(request.getStatus()).isEqualTo(ServiceRequestStatus.SCHEDULED);
+    }
+
+    @Test
+    void technicianCannotAcceptRequestBeforeAdminApproval() {
+        Customer customer = Customer.builder().id(4L).name("Northstar Coffee").active(true).build();
+        ServiceRequest request = ServiceRequest.builder().id(8L).title("Machine maintenance").description("Inspect the machine").status(ServiceRequestStatus.NEW).customer(customer).build();
+        when(requestRepository.findByIdForUpdate(8L)).thenReturn(Optional.of(request));
+
+        assertThatThrownBy(() -> workOrderService.acceptRequest(8L, LocalDateTime.now().plusDays(2), technician.getEmail()))
+                .isInstanceOf(BusinessRuleException.class);
+    }
+
+    @Test
+    void technicianCannotAcceptRequestWithExistingWorkOrder() {
+        Customer customer = Customer.builder().id(4L).name("Northstar Coffee").active(true).build();
+        ServiceRequest request = ServiceRequest.builder().id(8L).title("Machine maintenance").description("Inspect the machine").status(ServiceRequestStatus.REVIEWED).customer(customer).build();
+        when(requestRepository.findByIdForUpdate(8L)).thenReturn(Optional.of(request));
+        when(workOrderRepository.existsByServiceRequestId(8L)).thenReturn(true);
+
+        assertThatThrownBy(() -> workOrderService.acceptRequest(8L, LocalDateTime.now().plusDays(2), technician.getEmail()))
+                .isInstanceOf(BusinessRuleException.class);
+    }
+
+    @Test
     void unassignedTechnicianCannotChangeWorkOrder() {
         User other = User.builder().id(6L).email("other@serviceflow.demo").role(Role.TECHNICIAN).build();
         WorkOrder order = WorkOrder.builder().id(7L).status(WorkOrderStatus.SCHEDULED).assignedUser(other).build();
-        when(workOrderRepository.findById(7L)).thenReturn(Optional.of(order));
+        when(workOrderRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(order));
 
         assertThatThrownBy(() -> workOrderService.updateStatus(7L, new UpdateWorkOrderStatusRequest(WorkOrderStatus.IN_PROGRESS), technician.getEmail()))
                 .isInstanceOf(ForbiddenException.class);
@@ -63,7 +115,7 @@ class WorkOrderServiceTest {
     @Test
     void technicianCannotSkipFromScheduledToCompleted() {
         WorkOrder order = WorkOrder.builder().id(7L).status(WorkOrderStatus.SCHEDULED).assignedUser(technician).build();
-        when(workOrderRepository.findById(7L)).thenReturn(Optional.of(order));
+        when(workOrderRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(order));
 
         assertThatThrownBy(() -> workOrderService.updateStatus(7L, new UpdateWorkOrderStatusRequest(WorkOrderStatus.COMPLETED), technician.getEmail()))
                 .isInstanceOf(BusinessRuleException.class);
@@ -75,7 +127,7 @@ class WorkOrderServiceTest {
         ServiceRequest request = ServiceRequest.builder().id(8L).title("Maintenance").status(ServiceRequestStatus.APPROVED).customer(customer).build();
         WorkOrderRequest input = new WorkOrderRequest("Visit", "Complete service", null, 8L, 2L);
         when(workOrderRepository.existsByServiceRequestId(8L)).thenReturn(false);
-        when(requestRepository.findById(8L)).thenReturn(Optional.of(request));
+        when(requestRepository.findByIdForUpdate(8L)).thenReturn(Optional.of(request));
         when(userRepository.findById(2L)).thenReturn(Optional.of(technician));
 
         assertThatThrownBy(() -> workOrderService.create(input)).isInstanceOf(BusinessRuleException.class);
@@ -85,7 +137,7 @@ class WorkOrderServiceTest {
     void adminCannotCompleteUnassignedWorkOrder() {
         User admin = User.builder().id(1L).email("admin@serviceflow.demo").role(Role.ADMIN).build();
         WorkOrder order = WorkOrder.builder().id(7L).status(WorkOrderStatus.UNASSIGNED).build();
-        when(workOrderRepository.findById(7L)).thenReturn(Optional.of(order));
+        when(workOrderRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(order));
         when(userRepository.findByEmailIgnoreCase(admin.getEmail())).thenReturn(Optional.of(admin));
 
         assertThatThrownBy(() -> workOrderService.updateStatus(7L, new UpdateWorkOrderStatusRequest(WorkOrderStatus.COMPLETED), admin.getEmail()))
@@ -98,7 +150,8 @@ class WorkOrderServiceTest {
         ServiceRequest request = ServiceRequest.builder().id(8L).title("Maintenance").status(ServiceRequestStatus.APPROVED).customer(customer).build();
         WorkOrder order = WorkOrder.builder().id(7L).title("Visit").description("Complete service").status(WorkOrderStatus.UNASSIGNED).customer(customer).serviceRequest(request).build();
         AssignWorkOrderRequest input = new AssignWorkOrderRequest(2L, LocalDateTime.now().plusDays(1));
-        when(workOrderRepository.findById(7L)).thenReturn(Optional.of(order));
+        when(workOrderRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(order));
+        when(requestRepository.findByIdForUpdate(8L)).thenReturn(Optional.of(request));
         when(userRepository.findById(2L)).thenReturn(Optional.of(technician));
         when(workOrderRepository.save(order)).thenReturn(order);
 

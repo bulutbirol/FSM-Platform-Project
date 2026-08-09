@@ -1,6 +1,6 @@
 # ServiceFlow
 
-ServiceFlow is a field service management system for small installation, maintenance, repair, cleaning, and technical service businesses. It follows a job from customer request to quotation, approval, technician assignment, and completion.
+ServiceFlow is a field service management system for small installation, maintenance, repair, cleaning, and technical service businesses. It follows a job from customer submission through admin approval, technician acceptance, appointment scheduling, and completion.
 
 The project is a portfolio-sized full-stack application with separate Spring Boot and React applications, PostgreSQL persistence, JWT authentication, and a shared interactive demo.
 
@@ -8,9 +8,9 @@ The project is a portfolio-sized full-stack application with separate Spring Boo
 
 - JWT login with admin, technician, and customer authorization
 - Customer contact management, search, editing, and archiving
-- Service-request creation, filtering, details, and status tracking
-- Draft, send, approve, and reject quotation workflow
-- Technician assignment and scheduled work-order creation
+- Customer-owned service-request submission, filtering, details, and status tracking
+- Admin approval queue and optional draft/send/approve quotation workflow
+- Technician intake queue with self-assignment and appointment scheduling
 - Role-aware work-order Kanban board
 - Technician start and completion actions
 - Dashboard metrics, recent work, and status chart backed by API data
@@ -209,14 +209,14 @@ npm run e2e:run
 ## Main demo path
 
 1. Select **Try Demo** and review the admin dashboard.
-2. Create a customer and service request.
-3. Create and send a quotation.
-4. Switch to the customer account and approve the quotation.
-5. Return to the admin account and create an assigned work order.
-6. Switch to the technician account, start the job, and complete it.
-7. Return to the admin dashboard to see the updated totals.
+2. Switch to the Customer demo and submit a new service request.
+3. Return to the Admin demo, open the new request, and select **Approve for technicians**.
+4. Switch to the Technician demo and open the request from **Request queue**.
+5. Confirm an appointment date/time and select **Accept and schedule**.
+6. Open the scheduled work order at appointment time, then select **Start work** and **Complete work**.
+7. Return to the Admin dashboard to see the updated totals.
 
-The seeded customer account belongs to Northstar Coffee. To demonstrate customer approval, create the request for that customer. A separate customer can still be created first to demonstrate customer management.
+The seeded Customer demo account belongs to Northstar Coffee. Customer ownership is derived from the authenticated account, so the customer cannot submit a request for another customer. Quotations remain available as an optional commercial workflow when a price approval is required.
 
 ## Known limitations
 

@@ -30,6 +30,10 @@ public class ServiceRequestService {
             if (status != null) {
                 requests = requests.stream().filter(request -> request.getStatus() == status).toList();
             }
+        } else if (user.getRole() == Role.TECHNICIAN) {
+            requests = status == null || status == ServiceRequestStatus.REVIEWED
+                    ? requestRepository.findByStatusOrderByCreatedAtDesc(ServiceRequestStatus.REVIEWED)
+                    : List.of();
         } else {
             requests = status == null ? requestRepository.findAllByOrderByCreatedAtDesc() : requestRepository.findByStatusOrderByCreatedAtDesc(status);
         }
@@ -44,9 +48,8 @@ public class ServiceRequestService {
     }
 
     @Transactional
-    public ServiceRequestResponse create(ServiceRequestInput input) {
-        Customer customer = customerRepository.findById(input.customerId()).filter(Customer::isActive)
-                .orElseThrow(() -> new ResourceNotFoundException("Active customer not found."));
+    public ServiceRequestResponse create(ServiceRequestInput input, String email) {
+        Customer customer = customerForCreation(input, user(email));
         ServiceRequest request = new ServiceRequest();
         apply(request, input);
         request.setCustomer(customer);
@@ -56,7 +59,10 @@ public class ServiceRequestService {
 
     @Transactional
     public ServiceRequestResponse update(Long id, ServiceRequestInput input) {
-        ServiceRequest request = find(id);
+        ServiceRequest request = findForUpdate(id);
+        if (request.getStatus() != ServiceRequestStatus.NEW && request.getStatus() != ServiceRequestStatus.REVIEWED) {
+            throw new BusinessRuleException("Only new or reviewed service requests can be edited.");
+        }
         if (!request.getCustomer().getId().equals(input.customerId())) {
             throw new BusinessRuleException("A service request cannot be moved to another customer.");
         }
@@ -69,7 +75,7 @@ public class ServiceRequestService {
 
     @Transactional
     public ServiceRequestResponse updateStatus(Long id, UpdateServiceRequestStatusRequest input) {
-        ServiceRequest request = find(id);
+        ServiceRequest request = findForUpdate(id);
         if (!isAllowedTransition(request.getStatus(), input.status())) {
             throw new BusinessRuleException("Invalid service-request status transition.");
         }
@@ -79,6 +85,11 @@ public class ServiceRequestService {
 
     ServiceRequest find(Long id) {
         return requestRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Service request not found."));
+    }
+
+    private ServiceRequest findForUpdate(Long id) {
+        return requestRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Service request not found."));
     }
 
     private User user(String email) {
@@ -92,9 +103,29 @@ public class ServiceRequestService {
         return user.getCustomer().getId();
     }
 
+    private Customer customerForCreation(ServiceRequestInput input, User user) {
+        if (user.getRole() == Role.CUSTOMER) {
+            if (user.getCustomer() == null || !user.getCustomer().isActive()) {
+                throw new ForbiddenException("This account is not linked to an active customer.");
+            }
+            return user.getCustomer();
+        }
+        if (user.getRole() != Role.ADMIN) {
+            throw new ForbiddenException("Only customers and administrators can create service requests.");
+        }
+        if (input.customerId() == null) {
+            throw new BusinessRuleException("Customer is required for an administrator-created request.");
+        }
+        return customerRepository.findById(input.customerId()).filter(Customer::isActive)
+                .orElseThrow(() -> new ResourceNotFoundException("Active customer not found."));
+    }
+
     private void ensureVisible(ServiceRequest request, User user) {
         if (user.getRole() == Role.CUSTOMER && !request.getCustomer().getId().equals(customerId(user))) {
             throw new ForbiddenException("You can only view your own service requests.");
+        }
+        if (user.getRole() == Role.TECHNICIAN && request.getStatus() != ServiceRequestStatus.REVIEWED) {
+            throw new ForbiddenException("Technicians can only view requests waiting for technician acceptance.");
         }
     }
 
@@ -113,8 +144,8 @@ public class ServiceRequestService {
         return switch (current) {
             case NEW -> next == ServiceRequestStatus.REVIEWED || next == ServiceRequestStatus.CANCELLED;
             case REVIEWED -> next == ServiceRequestStatus.NEW || next == ServiceRequestStatus.CANCELLED;
-            case QUOTED, APPROVED, SCHEDULED, IN_PROGRESS -> next == ServiceRequestStatus.CANCELLED;
-            case COMPLETED, CANCELLED -> false;
+            case QUOTED, APPROVED -> next == ServiceRequestStatus.CANCELLED;
+            case SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED -> false;
         };
     }
 }

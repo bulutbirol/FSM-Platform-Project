@@ -49,13 +49,12 @@ public class QuoteService {
 
     @Transactional
     public QuoteResponse create(QuoteRequest input) {
-        if (quoteRepository.existsByServiceRequestId(input.serviceRequestId())) {
-            throw new BusinessRuleException("This service request already has a quotation.");
-        }
-        ServiceRequest request = requestRepository.findById(input.serviceRequestId())
-                .orElseThrow(() -> new ResourceNotFoundException("Service request not found."));
+        ServiceRequest request = findRequestForUpdate(input.serviceRequestId());
         if (request.getStatus() != ServiceRequestStatus.NEW && request.getStatus() != ServiceRequestStatus.REVIEWED) {
             throw new BusinessRuleException("Quotations can only be created for new or reviewed requests.");
+        }
+        if (quoteRepository.existsByServiceRequestId(input.serviceRequestId())) {
+            throw new BusinessRuleException("This service request already has a quotation.");
         }
         Quote quote = new Quote();
         apply(quote, input);
@@ -66,7 +65,7 @@ public class QuoteService {
 
     @Transactional
     public QuoteResponse update(Long id, QuoteRequest input) {
-        Quote quote = find(id);
+        Quote quote = findForUpdate(id);
         if (quote.getStatus() != QuoteStatus.DRAFT) {
             throw new BusinessRuleException("Only draft quotations can be edited.");
         }
@@ -79,19 +78,23 @@ public class QuoteService {
 
     @Transactional
     public QuoteResponse send(Long id) {
-        Quote quote = find(id);
+        Quote quote = findForUpdate(id);
         if (quote.getStatus() != QuoteStatus.DRAFT) {
             throw new BusinessRuleException("Only draft quotations can be sent.");
         }
+        ServiceRequest request = lockRequest(quote);
+        if (request.getStatus() != ServiceRequestStatus.NEW && request.getStatus() != ServiceRequestStatus.REVIEWED) {
+            throw new BusinessRuleException("Only new or reviewed requests can receive a quotation.");
+        }
         quote.setStatus(QuoteStatus.SENT);
-        quote.getServiceRequest().setStatus(ServiceRequestStatus.QUOTED);
-        requestRepository.save(quote.getServiceRequest());
+        request.setStatus(ServiceRequestStatus.QUOTED);
+        requestRepository.save(request);
         return QuoteResponse.from(quoteRepository.save(quote));
     }
 
     @Transactional
     public QuoteResponse decide(Long id, boolean approve, String email) {
-        Quote quote = find(id);
+        Quote quote = findForUpdate(id);
         User user = user(email);
         if (user.getRole() != Role.CUSTOMER || user.getCustomer() == null || !user.getCustomer().getId().equals(quote.getServiceRequest().getCustomer().getId())) {
             throw new ForbiddenException("You can only decide your own quotations.");
@@ -99,14 +102,31 @@ public class QuoteService {
         if (quote.getStatus() != QuoteStatus.SENT) {
             throw new BusinessRuleException("Only sent quotations can be approved or rejected.");
         }
+        ServiceRequest request = lockRequest(quote);
+        if (request.getStatus() != ServiceRequestStatus.QUOTED) {
+            throw new BusinessRuleException("This quotation can no longer change the request.");
+        }
         quote.setStatus(approve ? QuoteStatus.APPROVED : QuoteStatus.REJECTED);
-        quote.getServiceRequest().setStatus(approve ? ServiceRequestStatus.APPROVED : ServiceRequestStatus.REVIEWED);
-        requestRepository.save(quote.getServiceRequest());
+        request.setStatus(approve ? ServiceRequestStatus.APPROVED : ServiceRequestStatus.REVIEWED);
+        requestRepository.save(request);
         return QuoteResponse.from(quoteRepository.save(quote));
     }
 
     private Quote find(Long id) {
         return quoteRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Quotation not found."));
+    }
+
+    private Quote findForUpdate(Long id) {
+        return quoteRepository.findByIdForUpdate(id).orElseThrow(() -> new ResourceNotFoundException("Quotation not found."));
+    }
+
+    private ServiceRequest lockRequest(Quote quote) {
+        return findRequestForUpdate(quote.getServiceRequest().getId());
+    }
+
+    private ServiceRequest findRequestForUpdate(Long id) {
+        return requestRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Service request not found."));
     }
 
     private User user(String email) {

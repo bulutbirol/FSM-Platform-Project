@@ -35,6 +35,15 @@ public class WorkOrderController {
         return workOrderService.create(request);
     }
 
+    @PostMapping("/accept-request/{requestId}")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('TECHNICIAN')")
+    public WorkOrderResponse acceptRequest(@PathVariable Long requestId,
+                                           @Valid @RequestBody AcceptRequestWorkOrderRequest request,
+                                           Principal principal) {
+        return workOrderService.acceptRequest(requestId, request.scheduledDate(), principal.getName());
+    }
+
     @PatchMapping("/{id}/assignment")
     @PreAuthorize("hasRole('ADMIN')")
     public WorkOrderResponse assign(@PathVariable Long id, @Valid @RequestBody AssignWorkOrderRequest request) {
