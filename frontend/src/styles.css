@@ -21,6 +21,25 @@ body {
   background-image: radial-gradient(circle at 82% 8%, rgba(36, 99, 235, 0.08), transparent 28%), linear-gradient(180deg, #f8f7f3 0%, #f3f1ec 100%);
 }
 
+html:has(.landing-page) {
+  background: #0b172a;
+  scrollbar-color: #334155 #0b172a;
+}
+
+html:has(.landing-page)::-webkit-scrollbar {
+  width: 12px;
+}
+
+html:has(.landing-page)::-webkit-scrollbar-track {
+  background: #0b172a;
+}
+
+html:has(.landing-page)::-webkit-scrollbar-thumb {
+  border: 3px solid #0b172a;
+  border-radius: 999px;
+  background: #334155;
+}
+
 button, input, select, textarea {
   font: inherit;
 }

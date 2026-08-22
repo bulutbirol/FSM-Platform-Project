@@ -1,5 +1,6 @@
 import { LoaderCircle, Plus } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { useLanguage } from '../i18n/LanguageContext'
 
 export function PageHeader({ eyebrow, title, description, action, actionLabel, actionTo }) {
   return (
@@ -14,8 +15,9 @@ export function PageHeader({ eyebrow, title, description, action, actionLabel, a
   )
 }
 
-export function Loading({ label = 'Loading' }) {
-  return <div className="grid min-h-48 place-items-center text-sm font-semibold text-slate-500"><span className="flex items-center gap-2"><LoaderCircle className="animate-spin" size={18} />{label}</span></div>
+export function Loading({ label }) {
+  const { t } = useLanguage()
+  return <div className="grid min-h-48 place-items-center text-sm font-semibold text-slate-500"><span className="flex items-center gap-2"><LoaderCircle className="animate-spin" size={18} />{label || t('Loading')}</span></div>
 }
 
 export function ErrorPanel({ message }) {

@@ -34,7 +34,7 @@ Screenshots will be added after the first deployment.
 
 ### Backend
 
-- Java 21 and Spring Boot 3.3
+- Java 25 and Spring Boot 3.3
 - Maven, Spring Web, and Spring Security
 - JWT with JJWT
 - Spring Data JPA, Hibernate, PostgreSQL, and Flyway
@@ -107,11 +107,27 @@ out of version control through the root `.gitignore`.
 
 ## Requirements
 
-- Java 21
+- Java 25
 - Maven 3.9 or newer
 - Node.js 20.19 or newer
 - npm 10 or newer
 - Docker with Docker Compose
+
+## En kolay genel demo (Windows)
+
+1. Proje kokundeki `demo-baslat.bat` dosyasina cift tiklayin.
+2. Docker Desktop otomatik olarak acilir ve tum servisler baslatilir.
+3. Cloudflare gecici demo adresi olusturulur ve tarayicida acilir.
+4. Demo bittiginde `demo-durdur.bat` dosyasina cift tiklayin.
+
+Kurulum sirasinda masaustunde olusturulan **ServiceFlow Demo Baslat** ve
+**ServiceFlow Demo Durdur** kisayollari da ayni dosyalari calistirir. Arayuz
+varsayilan olarak Turkce acilir; ust menudeki **TR / EN** secimiyle dil
+degistirilebilir ve secim tarayicida hatirlanir.
+
+Bu yontem hesap, kredi karti veya alan adi gerektirmez. Demo adresinin
+calismasi icin bilgisayar ve Docker Desktop acik kalmalidir. Her yeni tunnel
+olusturuldugunda adres degisebilir.
 
 ## Local setup
 

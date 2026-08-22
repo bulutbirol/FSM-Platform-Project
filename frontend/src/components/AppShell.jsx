@@ -6,6 +6,8 @@ import { api, apiMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { Navigation } from './Navigation'
 import { useToast } from './Toast'
+import { LanguageSwitch } from '../i18n/LanguageSwitch'
+import { useLanguage } from '../i18n/LanguageContext'
 
 export function AppShell() {
   const { user, logout, switchRole } = useAuth()
@@ -14,12 +16,13 @@ export function AppShell() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { showToast } = useToast()
+  const { t, roleLabel } = useLanguage()
 
   const reset = useMutation({
     mutationFn: () => api.post('/demo/reset'),
     onSuccess: () => {
       queryClient.clear()
-      showToast('Demo data restored')
+      showToast(t('Demo data restored'))
       navigate('/app/dashboard')
     },
     onError: (error) => showToast(apiMessage(error), 'error')
@@ -30,7 +33,7 @@ export function AppShell() {
     try {
       const nextUser = await switchRole(event.target.value)
       queryClient.clear()
-      showToast(`Switched to ${nextUser.role.toLowerCase()}`)
+      showToast(t('Switched to {role}', { role: roleLabel(nextUser.role).toLocaleLowerCase() }))
       navigate(nextUser.role === 'ADMIN' ? '/app/dashboard' : '/app/requests')
     } catch (error) {
       showToast(apiMessage(error), 'error')
@@ -50,32 +53,33 @@ export function AppShell() {
         <div className="mb-9 flex items-center justify-between">
           <button className="flex items-center gap-3 text-left" onClick={() => navigate('/')}>
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-mineral text-white shadow-lg shadow-blue-900/30"><Zap size={21} fill="currentColor" /></span>
-            <span><strong className="block font-display text-lg">ServiceFlow</strong><small className="text-[10px] uppercase tracking-[.16em] text-slate-400">Field operations</small></span>
+            <span><strong className="block font-display text-lg">ServiceFlow</strong><small className="text-[10px] uppercase tracking-[.16em] text-slate-400">{t('Field operations')}</small></span>
           </button>
-          <button className="lg:hidden" onClick={() => setOpen(false)} aria-label="Close navigation"><X /></button>
+          <button className="lg:hidden" onClick={() => setOpen(false)} aria-label={t('Close navigation')}><X /></button>
         </div>
         <Navigation role={user.role} onNavigate={() => setOpen(false)} />
         <div className="mt-auto rounded-2xl border border-white/10 bg-white/5 p-3">
           <div className="flex items-center gap-3">
             <span className="grid h-9 w-9 place-items-center rounded-full bg-saffron font-display text-sm font-extrabold text-ink">{user.firstName[0]}{user.lastName[0]}</span>
-            <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{user.firstName} {user.lastName}</p><p className="text-[10px] uppercase tracking-wider text-slate-400">{user.role}</p></div>
-            <button onClick={signOut} aria-label="Sign out" className="text-slate-400 hover:text-white"><LogOut size={17} /></button>
+            <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{user.firstName} {user.lastName}</p><p className="text-[10px] uppercase tracking-wider text-slate-400">{roleLabel(user.role)}</p></div>
+            <button onClick={signOut} aria-label={t('Sign out')} className="text-slate-400 hover:text-white"><LogOut size={17} /></button>
           </div>
         </div>
       </aside>
-      {open && <button className="fixed inset-0 z-40 bg-ink/50 lg:hidden" onClick={() => setOpen(false)} aria-label="Close navigation overlay" />}
+      {open && <button className="fixed inset-0 z-40 bg-ink/50 lg:hidden" onClick={() => setOpen(false)} aria-label={t('Close navigation overlay')} />}
       <div className="min-w-0">
         <header className="sticky top-0 z-30 flex min-h-16 items-center gap-3 border-b border-slate-200/80 bg-paper/90 px-4 backdrop-blur-xl sm:px-7">
-          <button className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white lg:hidden" onClick={() => setOpen(true)} aria-label="Open navigation"><Menu size={20} /></button>
-          <div className="hidden items-center gap-2 text-xs font-bold uppercase tracking-[.14em] text-slate-400 sm:flex"><Zap size={14} className="text-saffron" />Demo workspace</div>
+          <button className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white lg:hidden" onClick={() => setOpen(true)} aria-label={t('Open navigation')}><Menu size={20} /></button>
+          <div className="hidden items-center gap-2 text-xs font-bold uppercase tracking-[.14em] text-slate-400 sm:flex"><Zap size={14} className="text-saffron" />{t('Demo workspace')}</div>
           <div className="ml-auto flex items-center gap-2">
-            {user.role === 'ADMIN' && <button className="btn-secondary !px-3 !py-2 text-xs" onClick={() => window.confirm('Restore the original shared demo data?') && reset.mutate()} disabled={reset.isPending}><RotateCcw size={15} /> <span className="hidden sm:inline">Reset demo data</span></button>}
+            <LanguageSwitch />
+            {user.role === 'ADMIN' && <button className="btn-secondary !px-3 !py-2 text-xs" onClick={() => window.confirm(t('Restore the original shared demo data?')) && reset.mutate()} disabled={reset.isPending}><RotateCcw size={15} /> <span className="hidden sm:inline">{t('Reset demo data')}</span></button>}
             <label className="relative">
-              <span className="sr-only">Switch demo role</span>
+              <span className="sr-only">{t('Switch demo role')}</span>
               <select className="appearance-none rounded-xl border border-slate-300 bg-white py-2 pl-3 pr-8 text-xs font-bold text-slate-700 outline-none" value={user.role} onChange={changeRole} disabled={switching}>
-                <option value="ADMIN">Admin demo</option>
-                <option value="TECHNICIAN">Technician demo</option>
-                <option value="CUSTOMER">Customer demo</option>
+                <option value="ADMIN">{t('Admin demo')}</option>
+                <option value="TECHNICIAN">{t('Technician demo')}</option>
+                <option value="CUSTOMER">{t('Customer demo')}</option>
               </select>
               <ChevronDown className="pointer-events-none absolute right-2 top-2.5" size={14} />
             </label>

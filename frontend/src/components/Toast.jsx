@@ -1,9 +1,11 @@
 import { createContext, useContext, useMemo, useState } from 'react'
 import { CheckCircle2, X } from 'lucide-react'
+import { useLanguage } from '../i18n/LanguageContext'
 
 const ToastContext = createContext(null)
 
 export function ToastProvider({ children }) {
+  const { t } = useLanguage()
   const [toast, setToast] = useState(null)
   const showToast = (message, tone = 'success') => {
     setToast({ message, tone })
@@ -18,7 +20,7 @@ export function ToastProvider({ children }) {
         <div className={`fixed bottom-5 right-5 z-[70] flex max-w-sm items-center gap-3 rounded-2xl border px-4 py-3 shadow-panel ${toast.tone === 'error' ? 'border-red-200 bg-red-50 text-red-800' : 'border-emerald-200 bg-white text-emerald-800'}`} role="status">
           <CheckCircle2 size={18} />
           <span className="text-sm font-semibold">{toast.message}</span>
-          <button onClick={() => setToast(null)} aria-label="Dismiss notification"><X size={16} /></button>
+          <button onClick={() => setToast(null)} aria-label={t('Dismiss notification')}><X size={16} /></button>
         </div>
       )}
     </ToastContext.Provider>
@@ -28,4 +30,3 @@ export function ToastProvider({ children }) {
 export function useToast() {
   return useContext(ToastContext)
 }
-

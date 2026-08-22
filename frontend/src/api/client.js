@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { translate } from '../i18n/LanguageContext'
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
@@ -23,6 +24,7 @@ api.interceptors.response.use(
 )
 
 export function apiMessage(error) {
-  return error.response?.data?.message || 'Something went wrong. Please try again.'
+  const message = error.response?.data?.message || 'Something went wrong. Please try again.'
+  const language = document.documentElement.lang === 'tr' ? 'tr' : 'en'
+  return translate(message, language)
 }
-

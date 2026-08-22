@@ -14,6 +14,8 @@ const tones = {
 }
 
 export function StatusBadge({ value }) {
-  return <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ${tones[value] || tones.NEW}`}>{value?.replaceAll('_', ' ')}</span>
+  const { statusLabel } = useLanguage()
+  return <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ${tones[value] || tones.NEW}`}>{statusLabel(value)}</span>
 }
+import { useLanguage } from '../i18n/LanguageContext'
 

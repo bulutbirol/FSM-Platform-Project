@@ -7,6 +7,7 @@ import { api, apiMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { useToast } from '../components/Toast'
 import { ErrorPanel, Field, Loading, PageHeader, Panel } from '../components/ui'
+import { useLanguage } from '../i18n/LanguageContext'
 
 const defaultValues = {
   priority: 'MEDIUM',
@@ -14,27 +15,29 @@ const defaultValues = {
 }
 
 function LinkedCustomerNotice() {
+  const { t } = useLanguage()
   return (
     <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4 sm:col-span-2">
       <p className="flex items-center gap-2 text-sm font-bold text-blue-950">
         <ShieldCheck size={18} />
-        Linked customer account
+        {t('Linked customer account')}
       </p>
       <p className="mt-1 text-xs leading-5 text-blue-800">
-        This request is securely linked to the customer record associated with your signed-in account.
+        {t('This request is securely linked to the customer record associated with your signed-in account.')}
       </p>
     </div>
   )
 }
 
 function CustomerField({ customers, error, register }) {
+  const { t } = useLanguage()
   return (
-    <Field label="Customer" error={error}>
-      <select className="input" {...register('customerId', { required: 'Customer is required' })}>
-        <option value="">Select customer</option>
+    <Field label={t('Customer')} error={error}>
+      <select className="input" {...register('customerId', { required: t('Customer is required') })}>
+        <option value="">{t('Select customer')}</option>
         {customers.map((customer) => (
           <option value={customer.id} key={customer.id}>
-            {customer.name} — {customer.company || 'Independent'}
+            {customer.name} — {customer.company || t('Independent')}
           </option>
         ))}
       </select>
@@ -50,6 +53,7 @@ export function RequestFormPage() {
   const { showToast } = useToast()
   const { user } = useAuth()
   const isAdmin = user.role === 'ADMIN'
+  const { t, priorityLabel } = useLanguage()
 
   const requestQuery = useQuery({
     queryKey: ['request', id],
@@ -84,12 +88,12 @@ export function RequestFormPage() {
     },
     onSuccess: ({ data }) => {
       queryClient.invalidateQueries({ queryKey: ['requests'] })
-      showToast(editing ? 'Request updated' : 'Request submitted for admin review')
+      showToast(editing ? t('Request updated') : t('Request submitted for admin review'))
       navigate(`/app/requests/${data.id}`)
     },
     onError: (error) => {
       const fieldErrors = error.response?.data?.fieldErrors || {}
-      Object.entries(fieldErrors).forEach(([field, message]) => setError(field, { message }))
+      Object.entries(fieldErrors).forEach(([field, message]) => setError(field, { message: t(message) }))
       showToast(apiMessage(error), 'error')
     }
   })
@@ -100,26 +104,26 @@ export function RequestFormPage() {
   }
 
   const description = isAdmin
-    ? 'Capture enough context for a clear quotation and successful visit.'
-    : 'Tell the operations team what you need. Your request will be reviewed before a technician can accept it.'
-  const submitLabel = editing ? 'Save changes' : isAdmin ? 'Create request' : 'Submit for review'
+    ? t('Capture enough context for a clear quotation and successful visit.')
+    : t('Tell the operations team what you need. Your request will be reviewed before a technician can accept it.')
+  const submitLabel = editing ? t('Save changes') : isAdmin ? t('Create request') : t('Submit for review')
 
   return (
     <div className="animate-rise">
       <Link className="mb-5 inline-flex items-center gap-2 text-sm font-bold text-slate-500" to="/app/requests">
         <ArrowLeft size={16} />
-        Service requests
+        {t('Service requests')}
       </Link>
       <PageHeader
-        eyebrow={editing ? 'Request details' : 'New intake'}
-        title={editing ? requestQuery.data?.title : 'Create service request'}
+        eyebrow={editing ? t('Request details') : t('New intake')}
+        title={editing ? requestQuery.data?.title : t('Create service request')}
         description={description}
       />
       <Panel className="max-w-3xl">
         <form className="grid gap-5 sm:grid-cols-2" onSubmit={handleSubmit((values) => mutation.mutate(values))}>
           <div className="sm:col-span-2">
-            <Field label="Title" error={errors.title}>
-              <input className="input" {...register('title', { required: 'Title is required' })} />
+            <Field label={t('Title')} error={errors.title}>
+              <input className="input" {...register('title', { required: t('Title is required') })} />
             </Field>
           </div>
 
@@ -129,23 +133,20 @@ export function RequestFormPage() {
             <LinkedCustomerNotice />
           )}
 
-          <Field label="Priority" error={errors.priority}>
+          <Field label={t('Priority')} error={errors.priority}>
             <select className="input" {...register('priority')}>
-              <option>LOW</option>
-              <option>MEDIUM</option>
-              <option>HIGH</option>
-              <option>URGENT</option>
+              {['LOW', 'MEDIUM', 'HIGH', 'URGENT'].map((priority) => <option value={priority} key={priority}>{priorityLabel(priority)}</option>)}
             </select>
           </Field>
-          <Field label="Requested date" error={errors.requestedDate}>
-            <input className="input" type="date" {...register('requestedDate', { required: 'Date is required' })} />
+          <Field label={t('Requested date')} error={errors.requestedDate}>
+            <input className="input" type="date" {...register('requestedDate', { required: t('Date is required') })} />
           </Field>
-          <Field label="Service address" error={errors.address}>
-            <input className="input" {...register('address', { required: 'Address is required' })} />
+          <Field label={t('Service address')} error={errors.address}>
+            <input className="input" {...register('address', { required: t('Address is required') })} />
           </Field>
           <div className="sm:col-span-2">
-            <Field label="Description" error={errors.description}>
-              <textarea className="input min-h-32" {...register('description', { required: 'Description is required' })} />
+            <Field label={t('Description')} error={errors.description}>
+              <textarea className="input min-h-32" {...register('description', { required: t('Description is required') })} />
             </Field>
           </div>
           <div className="flex gap-3 sm:col-span-2">
@@ -153,7 +154,7 @@ export function RequestFormPage() {
               <Save size={17} />
               {submitLabel}
             </button>
-            <Link className="btn-secondary" to="/app/requests">Cancel</Link>
+            <Link className="btn-secondary" to="/app/requests">{t('Cancel')}</Link>
           </div>
         </form>
       </Panel>

@@ -9,6 +9,7 @@ import { WorkOrderSidePanel } from '../components/work-orders/WorkOrderSidePanel
 import { useToast } from '../components/Toast'
 import { StatusBadge } from '../components/StatusBadge'
 import { ErrorPanel, Loading, PageHeader, Panel } from '../components/ui'
+import { formatDate, useLanguage } from '../i18n/LanguageContext'
 
 const transitions = {
   UNASSIGNED: ['CANCELLED'],
@@ -25,6 +26,7 @@ export function WorkOrderDetailPage() {
   const { showToast } = useToast()
   const [technicianId, setTechnicianId] = useState('')
   const [scheduledDate, setScheduledDate] = useState(new Date(Date.now() + 86400000).toISOString().slice(0, 16))
+  const { language, t } = useLanguage()
   const query = useQuery({ queryKey: ['work-order', id], queryFn: async () => (await api.get(`/work-orders/${id}`)).data })
   const technicians = useQuery({ queryKey: ['technicians'], queryFn: async () => (await api.get('/users/technicians')).data, enabled: user.role === 'ADMIN' })
 
@@ -37,7 +39,7 @@ export function WorkOrderDetailPage() {
     mutationFn: (value) => api.patch(`/work-orders/${id}/status`, { status: value }),
     onSuccess: () => {
       refresh()
-      showToast('Work order updated')
+      showToast(t('Work order updated'))
     },
     onError: (error) => showToast(apiMessage(error), 'error')
   })
@@ -48,7 +50,7 @@ export function WorkOrderDetailPage() {
     }),
     onSuccess: () => {
       refresh()
-      showToast('Technician assigned')
+      showToast(t('Technician assigned'))
     },
     onError: (error) => showToast(apiMessage(error), 'error')
   })
@@ -66,10 +68,10 @@ export function WorkOrderDetailPage() {
     <div className="animate-rise">
       <Link className="mb-5 inline-flex items-center gap-2 text-sm font-bold text-slate-500" to="/app/work-orders">
         <ArrowLeft size={16} />
-        Work orders
+        {t('Work orders')}
       </Link>
       <PageHeader
-        eyebrow={`Work order #${order.id}`}
+        eyebrow={t('Work order #{id}', { id: order.id })}
         title={order.title}
         description={order.description}
         action={techAction}
@@ -79,26 +81,26 @@ export function WorkOrderDetailPage() {
           <StatusBadge value={order.status} />
           <dl className="mt-7 grid gap-6 sm:grid-cols-2">
             <div>
-              <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">Customer</dt>
+              <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">{t('Customer')}</dt>
               <dd className="mt-2 font-bold">{order.customer.name}</dd>
               <dd className="text-sm text-slate-500">{order.customer.company}</dd>
             </div>
             <div>
-              <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">Technician</dt>
+              <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">{t('Technician')}</dt>
               <dd className="mt-2 flex items-center gap-2 text-sm font-semibold">
                 <UserRound size={16} />
-                {order.assignedUser ? `${order.assignedUser.firstName} ${order.assignedUser.lastName}` : 'Unassigned'}
+                {order.assignedUser ? `${order.assignedUser.firstName} ${order.assignedUser.lastName}` : t('Unassigned')}
               </dd>
             </div>
             <div>
-              <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">Scheduled</dt>
+              <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">{t('Scheduled')}</dt>
               <dd className="mt-2 flex items-center gap-2 text-sm">
                 <CalendarClock size={16} />
-                {order.scheduledDate ? new Date(order.scheduledDate).toLocaleString() : 'Not scheduled'}
+                {order.scheduledDate ? formatDate(order.scheduledDate, language, true) : t('Not scheduled')}
               </dd>
             </div>
             <div>
-              <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">Address</dt>
+              <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">{t('Address')}</dt>
               <dd className="mt-2 flex items-center gap-2 text-sm">
                 <MapPin size={16} />
                 {order.customer.address}

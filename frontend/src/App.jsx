@@ -18,11 +18,13 @@ import { RequestsPage } from './pages/RequestsPage'
 import { WorkOrderDetailPage } from './pages/WorkOrderDetailPage'
 import { WorkOrderFormPage } from './pages/WorkOrderFormPage'
 import { WorkOrdersPage } from './pages/WorkOrdersPage'
+import { useLanguage } from './i18n/LanguageContext'
 
 function Protected({ children }) {
   const { user, loading } = useAuth()
+  const { t } = useLanguage()
   if (loading) {
-    return <div className="grid min-h-screen place-items-center"><Loading label="Restoring session" /></div>
+    return <div className="grid min-h-screen place-items-center"><Loading label={t('Restoring session')} /></div>
   }
   return user ? children : <Navigate to="/login" replace />
 }

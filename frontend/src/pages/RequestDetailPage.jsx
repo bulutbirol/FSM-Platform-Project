@@ -9,6 +9,7 @@ import { TechnicianAcceptancePanel } from '../components/requests/TechnicianAcce
 import { useToast } from '../components/Toast'
 import { StatusBadge } from '../components/StatusBadge'
 import { ErrorPanel, Loading, PageHeader, Panel } from '../components/ui'
+import { formatDate, useLanguage } from '../i18n/LanguageContext'
 
 export function RequestDetailPage() {
   const { id } = useParams()
@@ -17,13 +18,14 @@ export function RequestDetailPage() {
   const { showToast } = useToast()
   const navigate = useNavigate()
   const [appointment, setAppointment] = useState('')
+  const { language, priorityLabel, t } = useLanguage()
   const query = useQuery({ queryKey: ['request', id], queryFn: async () => (await api.get(`/service-requests/${id}`)).data })
   const status = useMutation({
     mutationFn: (value) => api.patch(`/service-requests/${id}/status`, { status: value }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['request', id] })
       queryClient.invalidateQueries({ queryKey: ['requests'] })
-      showToast('Request status updated')
+      showToast(t('Request status updated'))
     },
     onError: (error) => showToast(apiMessage(error), 'error')
   })
@@ -33,7 +35,7 @@ export function RequestDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['requests'] })
       queryClient.invalidateQueries({ queryKey: ['work-orders'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      showToast('Request accepted and appointment scheduled')
+      showToast(t('Request accepted and appointment scheduled'))
       navigate(`/app/work-orders/${data.id}`)
     },
     onError: (error) => showToast(apiMessage(error), 'error')
@@ -53,11 +55,11 @@ export function RequestDetailPage() {
         <>
           <Link className="btn-secondary" to={`/app/requests/${id}/edit`}>
             <Edit3 size={16} />
-            Edit
+            {t('Edit')}
           </Link>
           <Link className="btn-primary" to={`/app/quotes/new?requestId=${id}`}>
             <FilePlus2 size={16} />
-            Create quote
+            {t('Create quote')}
           </Link>
         </>
       )}
@@ -68,10 +70,10 @@ export function RequestDetailPage() {
     <div className="animate-rise">
       <Link className="mb-5 inline-flex items-center gap-2 text-sm font-bold text-slate-500" to="/app/requests">
         <ArrowLeft size={16} />
-        Service requests
+        {t('Service requests')}
       </Link>
       <PageHeader
-        eyebrow={`Request #${request.id}`}
+        eyebrow={t('Request #{id}', { id: request.id })}
         title={request.title}
         description={request.description}
         action={actions}
@@ -81,24 +83,24 @@ export function RequestDetailPage() {
           <div className="flex flex-wrap items-center gap-3">
             <StatusBadge value={request.status} />
             <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500">
-              {request.priority} priority
+              {t('{priority} priority', { priority: priorityLabel(request.priority) })}
             </span>
           </div>
           <dl className="mt-7 grid gap-6 sm:grid-cols-2">
             <div>
-              <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">Customer</dt>
+              <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">{t('Customer')}</dt>
               <dd className="mt-2 font-bold text-ink">{request.customer.name}</dd>
               <dd className="text-sm text-slate-500">{request.customer.company}</dd>
             </div>
             <div>
-              <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">Requested date</dt>
+              <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">{t('Requested date')}</dt>
               <dd className="mt-2 flex items-center gap-2 text-sm font-semibold">
                 <CalendarDays size={16} />
-                {new Date(`${request.requestedDate}T00:00:00`).toLocaleDateString()}
+                {formatDate(`${request.requestedDate}T00:00:00`, language)}
               </dd>
             </div>
             <div className="sm:col-span-2">
-              <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">Service address</dt>
+              <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">{t('Service address')}</dt>
               <dd className="mt-2 flex items-center gap-2 text-sm">
                 <MapPin size={16} />
                 {request.address}

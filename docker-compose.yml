@@ -2,6 +2,7 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: serviceflow-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-serviceflow}
       POSTGRES_USER: ${POSTGRES_USER:-serviceflow}
@@ -16,6 +17,57 @@ services:
       timeout: 5s
       retries: 10
 
+  backend:
+    build:
+      context: ./backend
+    container_name: serviceflow-backend
+    restart: unless-stopped
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-serviceflow}
+      DB_USERNAME: ${POSTGRES_USER:-serviceflow}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-serviceflow}
+      JWT_SECRET: ${JWT_SECRET:-c2VydmljZWZsb3ctbG9jYWwtZGV2ZWxvcG1lbnQtc2VjcmV0LWNoYW5nZS1tZQ==}
+      SERVER_PORT: 8080
+      SPRING_PROFILES_ACTIVE: local
+      CORS_ORIGIN: http://localhost:${FRONTEND_PORT:-3000}
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8080/actuator/health | grep -q UP"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: /api
+    container_name: serviceflow-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1/ >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: serviceflow-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --url http://frontend:80
+    depends_on:
+      frontend:
+        condition: service_healthy
+
 volumes:
   serviceflow-postgres-data:
-
