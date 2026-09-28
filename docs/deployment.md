@@ -37,6 +37,8 @@ Set these environment variables in Render, using the real private values from Ne
 | `CORS_ORIGIN` | The final Vercel origin, such as `https://serviceflow.vercel.app` |
 | `JAVA_TOOL_OPTIONS` | `-XX:MaxRAMPercentage=50 -XX:MaxMetaspaceSize=128m -XX:+UseSerialGC` |
 
+The live API is `https://serviceflow-birol-api.onrender.com`; its health endpoint is `https://serviceflow-birol-api.onrender.com/actuator/health`. The live frontend origin for `CORS_ORIGIN` is `https://serviceflow-web-ten.vercel.app`.
+
 Generate the JWT secret locally with PowerShell, then paste it directly into Render:
 
 ```powershell
@@ -45,17 +47,31 @@ $jwtBytes = New-Object byte[] 48
 [Convert]::ToBase64String($jwtBytes)
 ```
 
+Render's **Generate** button may produce a 32-character hexadecimal value. That decodes to only 24 bytes when treated as Base64 and causes HTTP 500 on successful login because JJWT requires at least 32 decoded bytes. Use the Base64 command above and verify a real demo login after deployment.
+
 Do not reuse the `local` profile or its default JWT secret. The `demo` profile keeps the public `/actuator/health` check independent of the database, so the external monitor does not keep Neon's metered compute awake. Confirm `https://RENDER-HOST/actuator/health` returns `{"status":"UP"}`.
 
 ## 3. Vercel frontend
 
-Import the same repository into a Vercel Hobby project. Set the root directory to `frontend`, framework to Vite, build command to `npm run build`, and output directory to `dist`. Set `VITE_API_URL` to `https://RENDER-HOST/api`. Deploy, then set Render's `CORS_ORIGIN` to the actual Vercel origin and redeploy the API. The existing `frontend/vercel.json` handles React route refreshes.
+Deploy the existing Vite app from `frontend/` on Vercel Hobby. If the Vercel GitHub app does not have access to this repository, deploy from the CLI without granting it broader GitHub access:
+
+```powershell
+cd frontend
+npx --yes vercel@latest login
+npx --yes vercel@latest link --yes --project serviceflow-web --scope birols-projects-a05748f6
+npx --yes vercel@latest env add VITE_API_URL production --value https://RENDER-HOST/api --no-sensitive --yes
+npx --yes vercel@latest deploy --prod --yes
+```
+
+The CLI detects Vite and builds `dist`. Note the stable production alias from its output, then set Render's `CORS_ORIGIN` to that exact origin. The existing `frontend/vercel.json` handles React route refreshes. A CLI-only project does not automatically redeploy after a Git push; run the production deploy command again when the frontend changes. The generated `.vercel/` and `.env.local` files stay local.
 
 ## 4. UptimeRobot
 
 Create one free HTTP monitor for `https://RENDER-HOST/actuator/health` with a five-minute interval. Check that the first monitor response is successful and email alerts go to the owner. Do not use `/robots.txt`: Render may answer that path without waking a sleeping service.
 
 The external checks normally prevent Render's 15-minute idle spin-down. They do not prevent platform maintenance or restarts. Render grants 750 free instance hours monthly; a single continuously running service consumes 744 hours in a 31-day month. Watch the Render usage page, especially if the workspace contains another free web service. Neon's free database can pause its own compute between real user requests.
+
+The live five-minute HTTP monitor is in the owner's UptimeRobot dashboard at `https://dashboard.uptimerobot.com/monitors/804115066`.
 
 ## 5. Public check
 
