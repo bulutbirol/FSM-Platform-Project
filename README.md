@@ -4,6 +4,8 @@ ServiceFlow is a field service management system for small installation, mainten
 
 The project is a portfolio-sized full-stack application with separate Spring Boot and React applications, PostgreSQL persistence, JWT authentication, and a shared interactive demo.
 
+**Public demo:** [serviceflow-web-ten.vercel.app](https://serviceflow-web-ten.vercel.app) · **API health:** [serviceflow-birol-api.onrender.com/actuator/health](https://serviceflow-birol-api.onrender.com/actuator/health)
+
 ## Features
 
 - JWT login with admin, technician, and customer authorization
