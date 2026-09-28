@@ -43,7 +43,7 @@ Generate the JWT secret locally with PowerShell, then paste it directly into Ren
 
 ```powershell
 $jwtBytes = New-Object byte[] 48
-[Security.Cryptography.RandomNumberGenerator]::Fill($jwtBytes)
+[System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($jwtBytes)
 [Convert]::ToBase64String($jwtBytes)
 ```
 
