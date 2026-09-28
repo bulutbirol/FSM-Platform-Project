@@ -161,7 +161,7 @@ olusturuldugunda adres degisebilir.
 
 6. Open [http://localhost:5173](http://localhost:5173).
 
-The `local` profile matches the Docker Compose PostgreSQL settings, enables the demo reset endpoint, and applies both schema and demo seed migrations. Without that profile, demo reset and seed data are disabled and `JWT_SECRET` is required.
+The `local` profile matches the Docker Compose PostgreSQL settings, enables the demo reset endpoint, and applies both schema and demo seed migrations. The `demo` profile also enables the seeded demo, but still requires an externally supplied `JWT_SECRET`. Without either profile, demo reset and seed data are disabled.
 
 ## Environment variables
 
@@ -252,6 +252,6 @@ The seeded Customer demo account belongs to Northstar Coffee. Customer ownership
 - Add PostgreSQL integration tests with Testcontainers.
 - Add screenshot assets and improve accessibility testing.
 
-## Future deployment
+## Public demo deployment
 
-Deployment is intentionally not configured yet. A future deployment can package the Spring Boot API and React build separately, use a managed PostgreSQL database, and provide secrets through the hosting platform. The `local` profile must not be enabled in production. CORS, the API base URL, database credentials, and JWT secret must be set for the deployed addresses.
+The card-free public demo uses Render Free for the Java API, Neon Free for PostgreSQL, Vercel Hobby for the frontend, and UptimeRobot Free for an external five-minute health check. See [the deployment guide](docs/deployment.md) for the exact settings and limitations. Do not enable the `local` profile on the public service or commit deployment secrets.
